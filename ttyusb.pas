@@ -11,16 +11,16 @@ function  OpenTTY   (const ADevice : String ): THandle;
 function  ConfTTY   (const AHandle : Integer; const ASpeed : Boolean = true): Boolean;
 procedure CloseTTY  (const AHandle : THandle);
 
-function  wr_bit    (const AHandle : THandle; var AValue : Byte): Boolean   ;
-function  r_bit     (const AHandle : THandle; var AValue : Boolean): Boolean   ;
-function  w_bit     (const AHandle : THandle; const AValue : Boolean): Boolean   ;
+function  wr_bit    (const AHandle : THandle; var   AValue : Byte   ): Boolean;
+function  r_bit     (const AHandle : THandle; var   AValue : Boolean): Boolean;
+function  w_bit     (const AHandle : THandle; const AValue : Boolean): Boolean;
 
-function  wr_byte   (const AHandle : THandle; var   aValue : Byte)   : Boolean;
-function  WriteTTY  (const AHandle : THandle; const aValue : Byte)   : Boolean;
-function  ReadTTY   (const AHandle : THandle; var   aValue : Byte)   : Boolean;
+function  wr_byte   (const AHandle : THandle; var   AValue : Byte   ): Boolean;
+function  WriteTTY  (const AHandle : THandle; const AValue : Byte   ): Boolean;
+function  ReadTTY   (const AHandle : THandle; var   AValue : Byte   ): Boolean;
 
 const
-  INVALID_HANDLE    = THandle(-1);
+ // INVALID_HANDLE    = THandle(0);
 
 var
   old_term                                    : TermIOS                         ;
@@ -62,7 +62,7 @@ end;
 function    wr_bit  (const AHandle : THandle; var  AValue  : Byte   ): Boolean   ;
 begin
   Result       := false                                                             ;
-  if AHandle    = INVALID_HANDLE then Exit                                          ;                                               ;
+  if AHandle    = INVALID_HANDLE then Exit                                          ;
   if FileWrite(AHandle,   AValue, SizeOf(AValue)) < 0 then Exit                ;
   if FileRead (AHandle,   AValue, SizeOf(AValue)) < 0 then Exit                ;
   Result       := true                                                              ;
