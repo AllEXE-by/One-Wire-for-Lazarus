@@ -4,11 +4,17 @@ unit ttyUSB;
 //{$DEFINE DEBUG}
 interface
 
-uses
-  SysUtils, BaseUnix, TermIO;
+uses SysUtils,
+  {$IFDEF Unix}
+    BaseUnix, TermIO
+  {$ENDIF}
+  {$IFDEF Windows}
+    Windows
+  {$ENDIF};
+
 
 function  OpenTTY   (const ADevice : String ): THandle;
-function  ConfTTY   (const AHandle : Integer; const ASpeed : Boolean = true): Boolean;
+function  ConfTTY   (const AHandle : THandle; const ASpeed : Boolean = true): Boolean;
 procedure CloseTTY  (const AHandle : THandle);
 
 function  wr_bit    (const AHandle : THandle; var   AValue : Byte   ): Boolean;
@@ -20,22 +26,47 @@ function  WriteTTY  (const AHandle : THandle; const AValue : Byte   ): Boolean;
 function  ReadTTY   (const AHandle : THandle; var   AValue : Byte   ): Boolean;
 
 const
- // INVALID_HANDLE    = THandle(0);
-
+  {$IFDEF Unix}
+    INVALID_HANDLE    = INVALID_HANDLE_VALUE;
+  {$ENDIF}
+  {$IFDEF Windows}
+    INVALID_HANDLE    = INVALID_HANDLE_VALUE;
+  {$ENDIF}
 var
-  old_term                                    : TermIOS                         ;
+  {$IFDEF Unix}
+    old_term                                    : TermIOS                         ;
+  {$ENDIF}
+  {$IFDEF Windows}
+    old_term                                    : TDCB                            ;
+  {$ENDIF}
+
+
 
 implementation
 
 function    OpenTTY    (const ADevice : String): THandle;
 begin
+  {$IFDEF Unix}
   Result      := FileOpen(ADevice, O_RDWR or O_NONBLOCK or O_NDELAY);
-  if (Result   = INVALID_HANDLE)                  then Exit;
+  {$ENDIF}
+  {$IFDEF Windows}
+  Result      :=  CreateFile(PChar(ADevice), GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, nil, OPEN_EXISTING, 0, 0);
+  {$ENDIF}
+  if (Result   = INVALID_HANDLE)         then Exit;
+  {$IFDEF Unix}
   if TCGetAttr(Result, old_term) = INVALID_HANDLE then Exit;
-  if not(ConfTTY(Result))                         then Exit;
+  {$ENDIF}
+  {$IFDEF Windows}
+  if not(GetCommState(Result, old_term)) then Exit;
+  {$ENDIF}
+  if not(ConfTTY(Result))                then Exit;
 end;
 
-function    ConfTTY    (const AHandle : Integer; const ASpeed : Boolean = true): Boolean;
+
+
+
+{$IFDEF Unix}
+function    ConfTTY    (const AHandle : THandle; const ASpeed : Boolean = true): Boolean;
 var
   term : TermIOS;
   spd  : Cardinal = B115200;
@@ -52,10 +83,38 @@ begin
   if TCFlush  (AHandle, TCIOFLUSH      )  = INVALID_HANDLE then Exit;
   Result:= true;
 end;
-
-procedure   CloseTTY  (const AHandle : Integer);
+{$ENDIF}
+{$IFDEF Windows}
+function    ConfTTY    (const AHandle : THandle; const ASpeed : Boolean = true): Boolean;
+var
+  term : TDCB;
+  spd  : Cardinal = CBR_115200;
+  TimeOuts : TCOMMTIMEOUTS;
 begin
+  Result:= false;
+  if not(GetCommState(AHandle, term)) then Exit;
+  if not(ASpeed) then spd:= CBR_9600;
+  term.BaudRate := spd;
+  term.Parity   := NOPARITY;
+  term.ByteSize := 8;
+  term.StopBits := ONESTOPBIT;
+  //if not(GetCommTimeOuts(AHandle, TimeOuts)) then Exit;
+  //if not(SetCommTimeOuts(AHandle, TimeOuts)) then Exit;
+  if not(SetCommState(AHandle, term)) then Exit;
+  Result:= true;
+end;
+{$ENDIF}
+
+
+
+procedure   CloseTTY  (const AHandle : THandle);
+begin
+  {$IFDEF Unix}
   TCSetAttr(AHandle, TCSAFLUSH, old_term);
+  {$ENDIF}
+  {$IFDEF Windows}
+  SetCommState(AHandle, old_term);
+  {$ENDIF}
   FileClose(AHandle);
 end;
 
