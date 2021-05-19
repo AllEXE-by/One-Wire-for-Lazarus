@@ -1,180 +1,204 @@
 unit ttyUSB;
 
-{$mode objfpc}{$H+}
-//{$DEFINE DEBUG}
+{╔═══════════════════════════════════════════════════════════════════════════════╗
+ ║                                                                               ║
+ ║                  ░███╗░░  ░██╗░░░░░░░██╗██╗██████╗░███████╗                   ║
+ ║                 ░████║░░  ░██║░░██╗░░██║██║██╔══██╗██╔════╝                   ║
+ ║                 ██╔██║░░  ░╚██╗████╗██╔╝██║██████╔╝█████╗░░                   ║
+ ║                 ╚═╝██║░░  ░░████╔═████║░██║██╔══██╗██╔══╝░░                   ║
+ ║                 ███████╗  ░░╚██╔╝░╚██╔╝░██║██║░░██║███████╗                   ║
+ ║                 ╚══════╝  ░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░╚═╝╚══════╝                   ║
+ ║                                                                               ║
+ ║           ╔═══╗╔═══╗╔═══╗     ╔╗   ╔═══╗╔════╗╔═══╗╔═══╗╔╗ ╔╗╔═══╗            ║
+ ║           ║╔══╝║╔═╗║║╔═╗║     ║║   ║╔═╗║╚══╗ ║║╔═╗║║╔═╗║║║ ║║║╔═╗║            ║
+ ║           ║╚══╗║║ ║║║╚═╝║     ║║   ║║ ║║  ╔╝╔╝║║ ║║║╚═╝║║║ ║║║╚══╗            ║
+ ║           ║╔══╝║║ ║║║╔╗╔╝     ║║ ╔╗║╚═╝║ ╔╝╔╝ ║╚═╝║║╔╗╔╝║║ ║║╚══╗║            ║
+ ║           ║║   ║╚═╝║║║║╚╗     ║╚═╝║║╔═╗║╔╝ ╚═╗║╔═╗║║║║╚╗║╚═╝║║╚═╝║            ║
+ ║           ╚╝   ╚═══╝╚╝╚═╝     ╚═══╝╚╝ ╚╝╚════╝╚╝ ╚╝╚╝╚═╝╚═══╝╚═══╝            ║
+ ║                                                                               ║
+ ║  Copyright (C)               2021, Alexei NUZHKOV, <alexeidg@tut.by>, et al.  ║
+ ║  Авторское право (С)         2021, Алексей НУЖКОВ и другие.                   ║
+ ║                                                                               ║
+ ║  Данное программное обеспечение лицензировано MIT.                            ║
+ ║  Условия доступны по адресу:                                                  ║
+ ║                                                                               ║
+ ║  Вы можете использовать, копировать, изменять, объединять, публиковать,       ║
+ ║  распространять и/или продавать копии программного обеспечения                ║
+ ║  в соответствии с условиями:                                                  ║
+ ║                                                                               ║
+ ║  Это программное обеспечение распространяется на условиях "КАК ЕСТЬ",         ║
+ ║  БЕЗ каких либо ГАРАНТИЙ, явных или подразумеваемых.                          ║
+ ╚═══════════════════════════════════════════════════════════════════════════════╝}
+
+{$mode objfpc}{$H+}{$DEFINE DEBUG}
 interface
 
-uses SysUtils,
-  {$IFDEF Unix}
-    BaseUnix, TermIO
-  {$ENDIF}
-  {$IFDEF Windows}
-    Windows
-  {$ENDIF};
+uses SysUtils, {$IFDEF Unix} BaseUnix, TermIO {$ENDIF} {$IFDEF Windows} Windows {$ENDIF}   ;
 
-
-function  OpenTTY   (const ADevice : String ): THandle;
-function  ConfTTY   (const AHandle : THandle; const ASpeed : Boolean = true): Boolean;
-procedure CloseTTY  (const AHandle : THandle);
-
-function  wr_bit    (const AHandle : THandle; var   AValue : Byte   ): Boolean;
-function  r_bit     (const AHandle : THandle; var   AValue : Boolean): Boolean;
-function  w_bit     (const AHandle : THandle; const AValue : Boolean): Boolean;
-
-function  wr_byte   (const AHandle : THandle; var   AValue : Byte   ): Boolean;
-function  WriteTTY  (const AHandle : THandle; const AValue : Byte   ): Boolean;
-function  ReadTTY   (const AHandle : THandle; var   AValue : Byte   ): Boolean;
+function  OWOpen        (const ADevice : String )                               : THandle  ;
+function  OWConf        (const AHandle : THandle; const ASpeed : Boolean = true): Boolean  ;
+procedure OWClose       (const AHandle : THandle)                                          ;
+function  OWWriteReadBit(const AHandle : THandle; var   AValue : Byte   )       : Boolean  ;
+function  OWReadBit     (const AHandle : THandle; var   AValue : Boolean)       : Boolean  ;
+function  OWWriteBit    (const AHandle : THandle; const AValue : Boolean)       : Boolean  ;
+function  OWWrite       (const AHandle : THandle; const AValue : Byte   )       : Boolean  ;
+function  OWRead        (const AHandle : THandle; var   AValue : Byte   )       : Boolean  ;
 
 const
   {$IFDEF Unix}
-    INVALID_HANDLE    = INVALID_HANDLE_VALUE;
+    OW_INVALID_HANDLE    = INVALID_HANDLE_VALUE                                            ;
   {$ENDIF}
   {$IFDEF Windows}
-    INVALID_HANDLE    = INVALID_HANDLE_VALUE;
+    OW_INVALID_HANDLE    = INVALID_HANDLE_VALUE                                            ;
   {$ENDIF}
 var
   {$IFDEF Unix}
-    old_term                                    : TermIOS                         ;
+    old_term                                    : TermIOS                                  ;
   {$ENDIF}
   {$IFDEF Windows}
-    old_term                                    : TDCB                            ;
+    old_term                                    : TDCB                                     ;
   {$ENDIF}
-
-
 
 implementation
 
-function    OpenTTY    (const ADevice : String): THandle;
+// Функция возвращает дескриптор устройства управления шиной "адин-дрот".
+// В качестве параметра принимает название последовательного порта.
+// Для Винды - рекомендуется формат '//./COM3', особенно если выше 9 ком-порта.
+// Для Линя  - рекомендуемый формат '/dev/ttyUSB0' или какой там у вас адаптер.
+function  OWOpen        (const ADevice : String                                ): THandle  ;
 begin
   {$IFDEF Unix}
-  Result      := FileOpen(ADevice, O_RDWR or O_NONBLOCK or O_NDELAY);
+  Result      := FileOpen(ADevice, O_RDWR or O_NONBLOCK or O_NDELAY)                       ;
   {$ENDIF}
   {$IFDEF Windows}
-  Result      :=  CreateFile(PChar(ADevice), GENERIC_READ or GENERIC_WRITE, FILE_SHARE_READ or FILE_SHARE_WRITE, nil, OPEN_EXISTING, 0, 0);
+  Result      :=  CreateFile(PChar(ADevice), GENERIC_READ or GENERIC_WRITE,
+                             0, NIL, OPEN_EXISTING, 0, 0)                                  ;
   {$ENDIF}
-  if (Result   = INVALID_HANDLE)         then Exit;
+  if (Result   = OW_INVALID_HANDLE)         then Exit                                      ;
   {$IFDEF Unix}
-  if TCGetAttr(Result, old_term) = INVALID_HANDLE then Exit;
+  if TCGetAttr(Result, old_term) = INVALID_HANDLE then Exit                                ;
   {$ENDIF}
   {$IFDEF Windows}
-  if not(GetCommState(Result, old_term)) then Exit;
+  if not(GetCommState(Result, old_term))    then Exit                                      ;
   {$ENDIF}
-  if not(ConfTTY(Result))                then Exit;
+  if not(OWConf(Result))                    then Exit                                      ;
 end;
 
-
-
-
+// Функция управления устройством управления шиной "адин-дрот".
+function  OWConf        (const AHandle : THandle; const ASpeed : Boolean = true): Boolean  ;
 {$IFDEF Unix}
-function    ConfTTY    (const AHandle : THandle; const ASpeed : Boolean = true): Boolean;
 var
-  term : TermIOS;
-  spd  : Cardinal = B115200;
+  term            :  TermIOS                                                               ;
+  spd             :  Cardinal = B115200                                                    ;
 begin
-  Result:= false;
-  if TCGetAttr(AHandle, term{%H-})        = INVALID_HANDLE then Exit;
-  CFMakeRaw   (term)                                                ;
-  term.c_cc[VTIME]:= 1                                              ;
-  term.c_cc[VMIN ]:= 1                                              ;
-  if not(ASpeed) then spd:= B9600                                   ;
-  CFSetISpeed (term, spd)                                           ;
-  CFSetOSpeed (term, spd)                                           ;
-  if TCSetAttr(AHandle, TCSAFLUSH, term)  = INVALID_HANDLE then Exit;
-  if TCFlush  (AHandle, TCIOFLUSH      )  = INVALID_HANDLE then Exit;
-  Result:= true;
-end;
+  Result          := false                                                                 ;
+  if TCGetAttr(AHandle, term{%H-})        = INVALID_HANDLE then Exit                       ;
+  CFMakeRaw   (term)                                                                       ;
+  term.c_cc[VTIME]:= 1                                                                     ;
+  term.c_cc[VMIN ]:= 1                                                                     ;
+  if not(ASpeed) then spd:= B9600                                                          ;
+  CFSetISpeed (term, spd)                                                                  ;
+  CFSetOSpeed (term, spd)                                                                  ;
+  if TCSetAttr(AHandle, TCSAFLUSH, term)  = INVALID_HANDLE then Exit                       ;
+  if TCFlush  (AHandle, TCIOFLUSH      )  = INVALID_HANDLE then Exit                       ;
 {$ENDIF}
 {$IFDEF Windows}
-function    ConfTTY    (const AHandle : THandle; const ASpeed : Boolean = true): Boolean;
 var
-  term : TDCB;
-  spd  : Cardinal = CBR_115200;
-  TimeOuts : TCOMMTIMEOUTS;
+  term            :  TDCB                                                                  ;
+  spd             :  Cardinal  = CBR_115200                                                ;
 begin
-  Result:= false;
-  if not(GetCommState(AHandle, term)) then Exit;
-  if not(ASpeed) then spd:= CBR_9600;
-  term.BaudRate := spd;
-  term.Parity   := NOPARITY;
-  term.ByteSize := 8;
-  term.StopBits := ONESTOPBIT;
-  //if not(GetCommTimeOuts(AHandle, TimeOuts)) then Exit;
-  //if not(SetCommTimeOuts(AHandle, TimeOuts)) then Exit;
-  if not(SetCommState(AHandle, term)) then Exit;
-  Result:= true;
-end;
+  Result          := false                                                                 ;
+  if not(GetCommState(AHandle, term{%H-}))            then Exit                            ;
+  if not(ASpeed)
+    then spd      := CBR_9600                                                              ;
+  term.BaudRate   := spd                                                                   ;
+  term.Parity     := NOPARITY                                                              ;
+  term.ByteSize   := 8                                                                     ;
+  term.StopBits   := ONESTOPBIT                                                            ;
+  if not(SetCommState(AHandle, term))                 then Exit                            ;
 {$ENDIF}
+  Result:= true                                                                            ;
+end;
 
-
-
-procedure   CloseTTY  (const AHandle : THandle);
+// Процедура закрывает дескриптор устройства управления шиной "адин-дрот".
+procedure OWClose       (const AHandle : THandle                               )           ;
 begin
   {$IFDEF Unix}
-  TCSetAttr(AHandle, TCSAFLUSH, old_term);
+  TCSetAttr(AHandle, TCSAFLUSH, old_term)                                                  ;
   {$ENDIF}
   {$IFDEF Windows}
-  SetCommState(AHandle, old_term);
+  SetCommState(AHandle, old_term)                                                          ;
   {$ENDIF}
-  FileClose(AHandle);
+  FileClose(AHandle)                                                                       ;
 end;
 
-function    wr_bit  (const AHandle : THandle; var  AValue  : Byte   ): Boolean   ;
-begin
-  Result       := false                                                             ;
-  if AHandle    = INVALID_HANDLE then Exit                                          ;
-  if FileWrite(AHandle,   AValue, SizeOf(AValue)) < 0 then Exit                ;
-  if FileRead (AHandle,   AValue, SizeOf(AValue)) < 0 then Exit                ;
-  Result       := true                                                              ;
-end ;
 
-function    r_bit   (const AHandle : THandle; var  AValue  : Boolean): Boolean   ;
-var
-  res : Byte = $FF;
+// АПИ функция выполняет запись и чтение бита в шину "адин-дрот" возвращает истину если все удачно.
+function  OWWriteReadBit(const AHandle : THandle; var  AValue  : Byte          ): Boolean  ;
 begin
-  Result:= wr_bit(AHandle, res);
-  AValue:= res = $FF;
+  Result          := false                                                                 ;
+  if AHandle       = OW_INVALID_HANDLE                then Exit                            ;
+  if FileWrite(AHandle,   AValue, SizeOf(AValue)) < 0 then Exit                            ;
+  if FileRead (AHandle,   AValue, SizeOf(AValue)) < 0 then Exit                            ;
+  Result          := true                                                                  ;
+end                                                                                        ;
+
+// АПИ функция выполняет запись бита в шину "адин-дрот" возвращает истину если все удачно.
+function  OWWriteBit    (const AHandle : THandle; const AValue : Boolean       ): Boolean  ;
+var
+  res             :  Byte     = $FF                                                        ;
+begin
+  if not(AValue)
+    then res      := $00                                                                   ;
+  Result          := OWWriteReadBit(AHandle, res)                                          ;
 end;
 
-function    w_bit   (const AHandle : THandle; const AValue : Boolean): Boolean;
+// АПИ функция выполняет чтение бита с шины "адин-дрот" возвращает истину если все удачно.
+function  OWReadBit     (const AHandle : THandle; var  AValue  : Boolean       ): Boolean  ;
 var
-  res : Byte = $FF;
+  res             :  Byte    = $FF                                                         ;
 begin
-  if not(AValue) then res:= $00;
-  Result:= wr_bit(AHandle, res);
+  Result          := OWWriteReadBit(AHandle, res)                                          ;
+  AValue          := res     = $FF                                                         ;
 end;
 
-function    wr_byte (const AHandle : THandle; var   aValue : Byte   ): Boolean   ;
+// Функция выполняет запись и чтение байта в шину "адин-дрот" возвращает истину если все удачно.
+// Базовая функция для функций чтения и записи в шину "адин-дрот".
+function  OWWriteRead   (const AHandle : THandle; var   aValue : Byte          ): Boolean  ;
 var
-  ind          : Integer = 0                                                        ;
-  res          : Byte    = $00                                                      ;
+  ind             :  Integer = 0                                                           ;
+  res             :  Byte    = $00                                                         ;
 begin
-  Result       := false                                                             ;
+  Result          := false                                                                 ;
   repeat
-    inc(ind)                                                                        ;
-    if Odd(avalue) then   res:= $FF else res:= $00                                  ;
-    wr_bit(AHandle, res);
-    aValue     := aValue shr 1                                                      ;
-    if Odd(res) then aValue  := aValue or $80                                       ;
-  until ind > 7                                                                     ;
-  Result       := true                                                              ;
-end                                                                                 ;
+    inc(ind)                                                                               ;
+    if Odd(avalue)
+      then   res  := $FF
+      else   res  := $00                                                                   ;
+    OWWriteReadBit(AHandle, res)                                                           ;
+    aValue        := aValue shr 1                                                          ;
+    if Odd(res)
+      then aValue := aValue or $80                                                         ;
+  until ind > 7                                                                            ;
+  Result          := true                                                                  ;
+end                                                                                        ;
 
-function    WriteTTY(const AHandle : THandle; const aValue : Byte   ): Boolean   ;
+// АПИ функция выполняет запись байта в шину "адин-дрот" возвращает истину если все удачно.
+function  OWWrite       (const AHandle : THandle; const aValue : Byte          ): Boolean  ;
 var
-  tmp          :  Byte   = 0                                                        ;
+  tmp             :  Byte    = 0                                                           ;
 begin
-  tmp          := aValue                                                            ;
-  Result       := wr_byte(AHandle, tmp)                                             ;
-end                                                                                 ;
+  tmp             := aValue                                                                ;
+  Result          := OWWriteRead(AHandle, tmp)                                             ;
+end                                                                                        ;
 
-function    ReadTTY (const AHandle : THandle; var   aValue : Byte   ): Boolean   ;
+// АПИ функция выполняет чтение байта с шины "адин-дрот" возвращает истину если все удачно.
+function  OWRead        (const AHandle : THandle; var   aValue : Byte          ): Boolean  ;
 var
-  tmp          : Byte    = $FF                                                      ;
+  tmp             :  Byte    = $FF                                                         ;
 begin
-  Result       := wr_byte(AHandle, tmp)                                             ;
-  aValue       := tmp                                                               ;
-end                                                                                 ;
-
+  Result          := OWWriteRead(AHandle, tmp)                                             ;
+  aValue          := tmp                                                                   ;
+end                                                                                        ;
 
 end.
-
