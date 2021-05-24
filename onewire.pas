@@ -1,132 +1,89 @@
 unit OneWire;
 
-{╔═══════════════════════════════════════════════════════════════════════════════╗
- ║                                                                               ║
- ║                   ███╗     ██╗       ██╗██╗██████╗ ███████╗                   ║
- ║                  ████║     ██║  ██╗  ██║██║██╔══██╗██╔════╝                   ║
- ║                 ██╔██║     ╚██╗████╗██╔╝██║██████╔╝█████╗                     ║
- ║                 ╚═╝██║      ████╔═████║ ██║██╔══██╗██╔══╝                     ║
- ║                 ███████╗    ╚██╔╝ ╚██╔╝ ██║██║  ██║███████╗                   ║
- ║                 ╚══════╝     ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝                   ║
- ║                                                                               ║
- ║           ╔═══╗╔═══╗╔═══╗     ╔╗   ╔═══╗╔════╗╔═══╗╔═══╗╔╗ ╔╗╔═══╗            ║
- ║           ║╔══╝║╔═╗║║╔═╗║     ║║   ║╔═╗║╚══╗ ║║╔═╗║║╔═╗║║║ ║║║╔═╗║            ║
- ║           ║╚══╗║║ ║║║╚═╝║     ║║   ║║ ║║  ╔╝╔╝║║ ║║║╚═╝║║║ ║║║╚══╗            ║
- ║           ║╔══╝║║ ║║║╔╗╔╝     ║║ ╔╗║╚═╝║ ╔╝╔╝ ║╚═╝║║╔╗╔╝║║ ║║╚══╗║            ║
- ║           ║║   ║╚═╝║║║║╚╗     ║╚═╝║║╔═╗║╔╝ ╚═╗║╔═╗║║║║╚╗║╚═╝║║╚═╝║            ║
- ║           ╚╝   ╚═══╝╚╝╚═╝     ╚═══╝╚╝ ╚╝╚════╝╚╝ ╚╝╚╝╚═╝╚═══╝╚═══╝            ║
- ║                                                                               ║
- ║  Copyright (C)               2021, Alexei NUZHKOV, <alexeidg@tut.by>, et al.  ║
- ║  Авторское право (С)         2021, Алексей НУЖКОВ и другие.                   ║
- ║                                                                               ║
- ║  Данное программное обеспечение лицензировано MIT.                            ║
- ║  Условия доступны по адресу:                                                  ║
- ║                                                                               ║
- ║  Вы можете использовать, копировать, изменять, объединять, публиковать,       ║
- ║  распространять и/или продавать копии программного обеспечения                ║
- ║  в соответствии с условиями:                                                  ║
- ║                                                                               ║
- ║  Это программное обеспечение распространяется на условиях "КАК ЕСТЬ",         ║
- ║  БЕЗ каких либо ГАРАНТИЙ, явных или подразумеваемых.                          ║
- ╚═══════════════════════════════════════════════════════════════════════════════╝}
-
-{$mode objfpc}{$H+}{$DEFINE NO_DEBUG}
+{$mode objfpc}{$H+}
+{$DEFINE DEBUG}
 interface
 
 uses
-  SysUtils, ttyUSB;
+  SysUtils, OneWireBus;
 
-function    CheckCRC   (const ABuffer; const ASize : Integer): Boolean                              ;
+function    CheckCRC   (const ABuffer          ; const ASize  : Integer): Boolean;
 
 type
+  { TMAC }
+  TMAC = Array[0..5] of Byte;
+
   { TOWDEV }
-  POWDeviceRom        = ^TOWDeviceRom                                                               ;
-  TOWDeviceRom        = record
-    DEV_TYPE                               : Byte                                                   ;
-    DEV_MAC                                : Array[0..5] of Byte                                    ;
-    DEV_CRC                                : Byte                                                   ;
+  POWROM = ^TOWROM;
+  TOWROM      = record
+    dTYPE  : Byte;
+    dMAC   : TMAC;
+    dCRC   : Byte;
   end;
 
   { TONEWIRE }
-  POneWire            = ^TOneWire                                                                   ;
-  TOneWire            = class(TObject)
+  TOneWire = class(TObject)
     private
-      fHandle                                              : THandle                                ;
-      fEROM                                                : Integer                                ;                           // Позиция последнего несоответствия ROM.
-      fENDD                                                : Boolean                                ;                        // Признак последнего устройства
-      fBUSY                                                : Integer                                ;
-      fDEVICES                                             : Array of TOWDeviceROM                  ;
-      fDEVICESALARM                                        : Array of TOWDeviceROM                  ;
-      function    SearchEx      (var   ADevice : TOWDeviceRom): Boolean                             ;
-      function    Search        (var   ADevice : TOWDeviceRom): Boolean                             ;
-      function    SearchAlarm   (var   ADevice : TOWDeviceRom): Boolean                             ;
-
-      function    GetDevice     (Index : Integer)          : TOWDeviceRom                           ;
-      function    GetAlarmDevice(Index : Integer)          : TOWDeviceRom                           ;
-      function    GetDeviceCount                           : Integer                                ;
-      function    GetDeviceAlarmCount                      : Integer                                ;
-      function    GetBusy                                  : Int64                                  ;
-      procedure   SetBusy       (const AValue  : Int64)                                             ;
-      function    GetHandle                                : THandle                                ;
+      fBUS                                           : TOWBUS                          ;
+      fEROM                                          : Integer                         ;
+      fENDD                                          : Boolean                         ;
+      fBUSY                                          : Integer                         ;
+      fDEVICES                                       : Array of TOWROM                 ;
+      fALARMS                                        : Array of TOWROM                 ;
+      function    GetBusy                            : Int64                           ;
+      function    GetDevice(index : Integer): TOWROM;
+      function    GetDeviceAlarm(index : Integer): TOWROM;
+      function    SearchEx    (var   ADevice : TOWROM)  : Boolean                   ;
+      procedure   SetBusy     (const AValue: Int64)                                    ;
+      function    SearchDevices      (var   ADevice : TOWROM   ): Boolean           ;
+      function    SearchDevicesAlarm (var   ADevice : TOWROM   ): Boolean           ;
     public
-      constructor Create                                                                            ;
-      destructor  Destroy; override                                                                 ;
-      function    Connect       (const aPort : String)        : Boolean                             ;
-      function    Reset                                    : Boolean                                ;
-      function    GetPower                                 : Boolean                                ;
-      procedure   WaitBus                                                                           ;
-      function    SelectAll                                : Boolean                                ;
-      function    Select        (const ADevice : TOWDeviceRom): Boolean                             ;
-      function    ReadROM       (var   ADevice : TOWDeviceRom): Boolean                             ;
-      procedure   SearchAll                                                                         ;
-      procedure   SearchAllAlarm                                                                    ;
-      procedure   SearchClear                                                                       ;
-      property    Handle                                   : THandle      read GetHandle            ;
-      property    BusyTime                                 : Int64        read GetBusy write SetBusy;
-      property    Devices[Index : Integer]                 : TOWDeviceRom read GetDevice            ;
-      property    DevicesCount                             : Integer      read GetDeviceCount       ;
-      property    DevicesAlarm[Index : Integer]            : TOWDeviceRom read GetAlarmDevice       ;
-      property    DevicesAlarmCount                        : Integer      read GetDeviceAlarmCount  ;
-  end                                                                                               ;
+      constructor Create      (const ADevice : String)                                 ;
+      destructor  Destroy                   ;                                  override;
+      function    Reset                               : Boolean                        ;
+      function    Write       (const AValue : Byte   ): Boolean                        ;
+      function    Read        (var   AValue : Byte   ): Boolean                        ;
+      function    WriteBit    (const AValue : Boolean): Boolean                        ;
+      function    ReadBit     (var   AValue : Boolean): Boolean                        ;
+      procedure   WaitBus                                                              ;
+      function    SelectAll                           : Boolean                        ;
+      function    Select      (const ADevice : TOWROM   ): Boolean                  ;
+      function    ReadROM     (var   ADevice : TOWROM   ): Boolean                  ;
+      function    DevicesCount      : Integer                                          ;
+      function    DevicesAlarmCount : Integer                                          ;
+      property    Device     [index : Integer]: TOWROM read GetDevice;
+      property    DeviceAlarm[index : Integer]: TOWROM read GetDeviceAlarm;
+
+      procedure   SearchDevices;
+      procedure   SearchDevicesAlarm;
+
+      procedure   SearchClear                                                          ;
+      property    BusyTime                           : Int64 read GetBusy write SetBusy;
+  end                                                                                  ;
 
 
-    { TOWDefaultDevice }
-  POWDefaultDevice    = ^TOWDefaultDevice                                                           ;
-  TOWDefaultDevice    = class(TObject)
+  { TOWDefDeviceice }
+
+  TOWDefaultDevice = class(TObject)
     private
-      fOneWire                             : TOneWire                                               ;
-      fDATA                                : Pointer                                                ; // Данные полученные от устройства и/или предназначенные для записи в устройство
+      fOneWire                          : TOneWire;
+      fPOWER                            : Boolean;
+      function    GetPower              : Boolean;
+    protected
+      fROM                              : TOWROM;
+      fDATA                             : Pointer;
     public
-      constructor Create     (const AOWire : POneWire; const AROM : POWDeviceRom)                   ;
-      destructor  Destroy; override                                                                 ;
+      constructor Create   (const AOWire: TOneWire;
+                            const  ADevice : TOWROM) ;
+      destructor  Destroy               ; override ;
+      property    TypeDevice            : Byte read fROM.dTYPE;
+      function    TypeName              : String;
+      function    LoadPower             : Boolean ;
+      property    Bus                   : TOneWire read fOneWire;
+      property    MAC                   : TMAC read fROM.dMAC;
+      property    Power                 : Boolean read GetPower;
   end;
 
-
-  {
-  $01: Result:='DS1990A';
-  $02: Result:='DS1991L';
-  $04: Result:='DS1994L';
-  $06: Result:='DS1993L';
-  $08: Result:='DS1992L';
-  $09: Result:='DS1982' ;
-  $0A: Result:='DS1995L';
-  $0B: Result:='DS1985' ;
-  $0C: Result:='DS1996L';
-  $0F: Result:='DS1986' ;
-  *$10: if (fROM.ROM_MAC[5] * 256 + fROM.ROM_MAC[4]) >= 8
-        then Result:='DS18S20'
-        else Result:='DS1820';
-  $12: Result:='DS2604' ;
-  $1A: Result:='DS1963L';
-  $21: Result:='DS1921' ;
-  $22: Result:='DS1822' ;
-  *$28: Result:='DS18B20';
-  $33: Result:='DS1961S';
-  $41: Result:='DS1922L';
-  $89: Result:='DS1982U';
-  $8B: Result:='DS1985U';
-  $8F: Result:='DS1986U';
-}
 
 
  const
@@ -135,8 +92,10 @@ type
    MATCH_ROM         = $55; // Выбрать устройство по МАС
    READ_ROM          = $33; // Прочитать МАС устройства
    SEARCH_ROM        = $F0; // Искать МАС устройств
-   SEARCH_ALR        = $EC; // Искать МАС устройств с установленной тревогой
+   ALARM_SEARCH      = $EC; // Искать МАС устройств с установленной тревогой
+
    READ_POWER_SUPPLY = $B4; // Читать состояние питания
+
 
 
 implementation
@@ -163,184 +122,220 @@ begin
   Result       := fCRC = PByte(@ABuffer)[Pred(ASize)]                               ;
 end                                                                                 ;
 
-{ TOWDefaultDevice }
+{ TOWDefDevice }
 
-constructor TOWDefaultDevice.Create(const AOWire : POneWire; const AROM : POWDeviceRom);
+function    TOWDefaultDevice.GetPower                      : Boolean ;
 begin
-  inherited Create                                                                  ;
-    fOneWire                             := @AOWire                                  ;
-    fROM                                 := @AROM                                    ; // тип устройства, его МАС и контрольная сумма
-    fDATA                                := nil                                     ; // Данные полученные от устройства и/или предназначенные для записи в устройство
-
+  Result:= fPOWER;
 end;
 
-destructor TOWDefaultDevice.Destroy;
+constructor TOWDefaultDevice.Create           (const AOWire: TOneWire;
+                                             const ADevice: TOWROM);
 begin
-  inherited Destroy                                                                 ;
+  inherited Create;
+  fROM     := ADevice;
+  fOneWire := AOWire;
+  fDATA    := nil;
+  fPOWER   := false;
+end;
+
+destructor  TOWDefaultDevice.Destroy                                 ;
+begin
+  FreeMem(fDATA);
+  inherited Destroy;
+end;
+
+function    TOWDefaultDevice.TypeName                      : String  ;
+begin
+  Result     := 'UNABLE';
+  case TypeDevice of
+  $01: Result:='DS1990A';
+  $02: Result:='DS1991L';
+  $04: Result:='DS1994L';
+  $06: Result:='DS1993L';
+  $08: Result:='DS1992L';
+  $09: Result:='DS1982' ;
+  $0A: Result:='DS1995L';
+  $0B: Result:='DS1985' ;
+  $0C: Result:='DS1996L';
+  $0F: Result:='DS1986' ;
+  $10: if ((fROM.dMAC[5] * 256 + fROM.dMAC[4]) >= 8)
+  then Result:='DS18S20'
+  else Result:='DS1820' ;
+  $12: Result:='DS2604' ;
+  $1A: Result:='DS1963L';
+  $21: Result:='DS1921' ;
+  $22: Result:='DS1822' ;
+  $28: Result:='DS18B20';
+  $33: Result:='DS1961S';
+  $41: Result:='DS1922L';
+  $89: Result:='DS1982U';
+  $8B: Result:='DS1985U';
+  $8F: Result:='DS1986U';
+  end;
+end;
+
+function    TOWDefaultDevice.LoadPower                     : Boolean ;
+var
+  res: Boolean = false;
+begin
+  Result := false;
+  Bus.WaitBus; // Ожидаем шину
+  if not(Bus.fBus.Write(READ_POWER_SUPPLY)) then Exit;
+  if not(Bus.fBus.ReadBit(res)) then Exit;
+  fPOWER := res;
+  Result := true;
 end;
 
 { TOneWire }
 
-function    TOneWire.Reset                              : Boolean   ;
-var res : Byte                                                      ;
+function    TOneWire.Reset                             : Boolean   ;
+var res : Byte                                                     ;
 begin
-  Result:= false                                                    ;
-  if not(OWConf(fHandle, false)) then Exit                        ;
-  res:= $F0                                                         ;
-  if not(OWWriteReadBit(fHandle, res))  then Exit;
-  if not(OWConf(fHandle))then Exit                                ;
-  BusyTime:= 0;                                          ;
-  Result:=    (res <> $F0)                                          ;
-end                                                                 ;
+  Result:= false                                                   ;
+  if not(fBus.Config(false)    ) then Exit                         ;
+  res   := $F0                                                     ;
+  if not(fBus.WriteReadBit(res)) then Exit                         ;
+  if not(fBus.Config           ) then Exit                         ;
+  fBUSY := GetTickCount64                                          ;
+  Result:=    (res <> $F0)                                         ;
+end                                                                ;
 
-function    TOneWire.GetPower                    : Boolean   ;
-var res: Boolean = false;
+function    TOneWire.Write      (const AValue: Byte   ): Boolean   ;
 begin
-  Result:= false;
-  if not(OWWrite(fHandle, READ_POWER_SUPPLY)) then Exit;
-  if not(OWReadBit(fHandle, res)) then Exit;
-  Result:= true;
+  WaitBus                                                          ; // Ожидаем шину
+  Result:= fBus.Write(AValue)                                      ;
 end;
 
-procedure   TOneWire.WaitBus;
-{$IFDEF DEBUG}
-var r : Boolean = false;
-{$IFEND}
+function    TOneWire.Read       (var   AValue: Byte   ): Boolean   ;
 begin
-  {$IFDEF DEBUG}
-  if BusyTime > 0 then Writeln('ШИНА НЕ ДОСТУПНА (паразитное питание)');
-  {$IFEND}
-  while BusyTime > 0 do
-  begin
-    Sleep(10);
-    {$IFDEF DEBUG}
-      Write('.');
-      r:= true;
-    {$IFEND}
-  end;
-  {$IFDEF DEBUG}
-  if r then Writeln('');
-  if r then Writeln('ШИНА ДОСТУПНА');
-  {$IFEND}
+  WaitBus; // Ожидаем шину
+  Result:= fBus.Read(AValue);
 end;
 
-function    TOneWire.GetHandle                                          : THandle   ;
+function    TOneWire.WriteBit   (const AValue: Boolean): Boolean   ;
 begin
-  Result:= fHandle                                                  ;
-end                                                                 ;
+  WaitBus; // Ожидаем шину
+  Result:= fBus.WriteBit(AValue);
+end;
 
-function    TOneWire.GetBusy: Int64;
+function    TOneWire.ReadBit    (var   AValue: Boolean): Boolean   ;
+begin
+  WaitBus; // Ожидаем шину
+  Result:= fBus.ReadBit(AValue);
+end;
+
+procedure   TOneWire.WaitBus                                       ;
+begin
+  while BusyTime > 0 do Sleep(10);
+end;
+
+function    TOneWire.GetBusy                           : Int64     ;
 begin
   Result:= fBUSY - GetTickCount64;
   if Result < 0 then Result:= 0;
 end;
 
-function TOneWire.GetAlarmDevice(Index : Integer): TOWDeviceRom;
+function TOneWire.GetDevice(index : Integer): TOWROM;
 begin
-  Result:= fDEVICESALARM[Index];
+  Result:= fDEVICES[index];
 end;
 
-function TOneWire.GetDevice(Index: Integer): TOWDeviceRom;
+function TOneWire.GetDeviceAlarm(index : Integer): TOWROM;
 begin
-  Result:= fDEVICES[Index];
+  Result:= fALARMS[index];
 end;
 
-function TOneWire.GetDeviceAlarmCount: Integer;
-begin
-  Result:= Length(fDEVICESALARM);
-end;
-
-function TOneWire.GetDeviceCount: Integer;
-begin
-  Result:= Length(fDEVICES);
-end;
-
-function    TOneWire.SelectAll                                            : Boolean   ;
+function    TOneWire.SelectAll                         : Boolean   ;
 begin
   Result:= false;
-  WaitBus;
+  WaitBus; // Ожидаем шину
   if not(Reset) then Exit;
-  if not(OWWrite(fHandle, SKIP_ROM)) then Exit;
+  if not(fBus.Write(SKIP_ROM)) then Exit;
   Result:= true;
 end;
 
-function    TOneWire.Select     (const ADevice : TOWDeviceRom)                  : Boolean   ;
+function    TOneWire.Select     (const ADevice   : TOWROM): Boolean   ;
 var ind : Integer;
 begin
   Result:= false;
-  WaitBus;
+  WaitBus; // Ожидаем шину
   if not(Reset) then Exit;
-  if not(OWWrite(fHandle, MATCH_ROM)) then Exit;
-  for ind:= 0 to 7 do if not(OWWrite(fHandle, PByte(@ADevice)[ind])) then Exit;
+  if not(fBus.Write(MATCH_ROM)) then Exit;
+    for ind:= 0 to Pred(SizeOf(TOWROM)) do if not(fBus.Write(PByte(@ADevice)[ind])) then Exit;
   Result:= true;
 end;
 
-function    TOneWire.ReadROM    (var   ADevice  : TOWDeviceRom)                  : Boolean   ;
+function    TOneWire.ReadROM    (var   ADevice   : TOWROM): Boolean   ;
 var ind : Integer = 0;
 begin
   Result:= false;
-  WaitBus;
+  WaitBus; // Ожидаем шину
   if not(Reset) then Exit;
-  if not(OWWrite(fHandle, READ_ROM)) then Exit;
-  for ind:= 0 to 7 do if not(OWRead(fHandle, PByte(@ADevice)[ind])) then Exit; // Family
+  if not(fBus.Write(READ_ROM)) then Exit;
+  for ind:= 0 to Pred(SizeOf(TOWROM)) do if not(fBus.Read(PByte(@ADevice)[ind])) then Exit; // Family
   Result:= true;
 end;
 
-function    TOneWire.Search     (var   ADevice  : TOWDeviceRom)                  : Boolean   ;
+function    TOneWire.SearchDevices     (var   ADevice   : TOWROM): Boolean   ;
 begin
   Result:= false;
-  WaitBus;
-  if not(Reset                                ) then Exit;
-  if not(OWWrite(fHandle, SEARCH_ROM         )) then Exit;
+  WaitBus; // Ожидаем шину
+  if not(Reset) then Exit;
+  if not(fBus.Write(SEARCH_ROM)) then Exit;
+  if not(SearchEx(ADevice)) then Exit;
+  Result:= true;
+end;
+
+function    TOneWire.SearchDevicesAlarm(var   ADevice   : TOWROM): Boolean   ;
+begin
+  Result:= false;
+  WaitBus; // Ожидаем шину
+  if not(Reset                           ) then Exit;
+  if not(fBus.Write(ALARM_SEARCH)) then Exit;
   if not(SearchEx   (ADevice                 )) then Exit;
   Result:= true;
 end;
 
-procedure TOneWire.SearchAll;
+function TOneWire.DevicesCount: Integer;
+begin
+  Result:= Length(fDEVICES);
+end;
+
+function TOneWire.DevicesAlarmCount: Integer;
+begin
+  Result:= Length(fALARMS);
+end;
+
+procedure TOneWire.SearchDevices;
 var
-  SearchROM : TOWDeviceRom;
+  aDevice : TOWROM;
 begin
-  SetLength(fDEVICES, 0);
-  if Self.Reset then
-    while Self.Search(SearchROM) do
-    begin
-      SetLength(fDEVICES, Length(fDEVICES) + 1);
-      fDEVICES[Length(fDEVICES) - 1]:= SearchROM;
-    end;
-  Self.Reset;
+  while Self.SearchDevices(aDevice{%H-}) do
+  begin
+    SetLength(fDEVICES, Length(fDEVICES) + 1);
+    fDEVICES[Length(fDEVICES) - 1]:= aDevice;
+  end;
 end;
 
-function    TOneWire.SearchAlarm(var   ADevice   : TOWDeviceRom)                  : Boolean   ;
-begin
-  Result:= false;
-  WaitBus;
-  if not(Reset                               ) then Exit;
-  if not(OWWrite(fHandle, SEARCH_ALR        )) then Exit;
-  if not(SearchEx   (ADevice                )) then Exit;
-  Result:= true;
-end;
-
-procedure TOneWire.SearchAllAlarm;
+procedure TOneWire.SearchDevicesAlarm;
 var
-  SearchROM : TOWDeviceRom;
+  aDevice : TOWROM;
 begin
-  SetLength(fDEVICESALARM, 0);
-  if Self.Reset then
-    while Self.SearchAlarm(SearchROM) do
-    begin
-      SetLength(fDEVICESALARM, Length(fDEVICESALARM) + 1);
-      fDEVICESALARM[Length(fDEVICESALARM) - 1]:= SearchROM;
-    end;
-  Self.Reset;
+  while Self.SearchDevicesAlarm(aDevice{%H-}) do
+  begin
+    SetLength(fALARMS, Length(fALARMS) + 1);
+    fALARMS[Length(fALARMS) - 1]:= aDevice;
+  end;
 end;
 
-procedure   TOneWire.SearchClear                                                    ;
+procedure   TOneWire.SearchClear                                   ;
 begin
   fEROM        := 0                ;
   fENDD        := false            ;
 end;
 
-function    TOneWire.SearchEx   (var   ADevice   : TOWDeviceRom)                  : Boolean   ;
+function    TOneWire.SearchEx   (var   ADevice   : TOWROM): Boolean   ;
 var ind_bit      : Byte = 1;                                         // Номер текущего бита байта адреса
     ind_byte     : Byte = 0;                                         // Номер текущего байта в адресе
     rom_byte     : Byte = 1;                                         //
@@ -353,8 +348,8 @@ begin
   if not(fENDD) then
   begin
     repeat                                                              // Цикл поиска устройства.
-      if not(OWReadBit(fHandle, a_bit)) then Exit;                             // Читаем 1-ый бит
-      if not(OWReadBit(fHandle, b_bit)) then Exit;                             // Читаем 2-ой бит
+      if not(fBus.ReadBit(a_bit)) then Exit;                             // Читаем 1-ый бит
+      if not(fBus.ReadBit(b_bit)) then Exit;                             // Читаем 2-ой бит
       if (a_bit and b_bit)                                              // Если биты установлены...
         then Exit                                                       // Выходим
         else
@@ -375,7 +370,7 @@ begin
           if (rom_search)                                             // установите или очистите бит в байте ROM rom_byte_number
           then PByte(@ADevice)[ind_byte]:= PByte(@ADevice)[ind_byte] or rom_byte        // с маской rom_byte_mask
           else PByte(@ADevice)[ind_byte]:= PByte(@ADevice)[ind_byte] and not(rom_byte);
-          if not(OWWriteBit(fHandle, rom_search)) then Exit;                  //серийный номер направление поиска бит записи
+          if not(fBus.WriteBit(rom_search)) then Exit;                  //серийный номер направление поиска бит записи
           inc(ind_bit);                                               // увеличить счетчик байтов id_bit_number
           rom_byte := rom_byte shl 1;                                 // и сдвинуть маску rom_byte_mask
           if (rom_byte = 0) then                                      // если маска равна 0 то перейдите в new SerialNum byte rom_byte_number и сбросьте маску
@@ -387,7 +382,7 @@ begin
     until (ind_byte = 8);                                             // цикл до тех пор пока через все байты ПЗУ 0-7
     if ((ind_bit > 64) or (PByte(@ADevice)[7] <> 0)) then                        // если поиски увенчались успехом, то
     begin
-      fEROM := last_zero;                                               // поиск успешен,поэтому установите LastDiscrepancy, LastDeviceFlag,search_result
+      fEROM := last_zero;                                               // поиск успешен,поэтому установите LastDiscrepancy, LastDeviceiceFlag,search_result
       if (fEROM = 0) then fENDD := true;                                // нашли последнее устройство
       Result:= true;
     end;
@@ -400,35 +395,27 @@ begin
   end else Result:= CheckCRC(ADevice, SizeOf(ADevice));
 end;
 
-procedure   TOneWire.SetBusy    (const AValue : Int64);
+procedure   TOneWire.SetBusy    (const AValue : Int64)             ;
 begin
-  fBUSY:= GetTickCount64 + AValue;
+  if ((GetTickCount64 + AValue) > fBUSY)
+  then fBUSY:= GetTickCount64 + AValue;
 end;
 
-constructor TOneWire.Create;
+constructor TOneWire.Create     (const ADevice: String)            ;
 begin
   inherited Create                           ;
   fBUSY        := GetTickCount64             ;
   fEROM        := 0                          ;
   fENDD        := false                      ;
+  fBUS         := TOWBUS.Create(ADevice)     ;
+
 end;
 
-destructor  TOneWire.Destroy                                                        ;
+destructor  TOneWire.Destroy                                       ;
 begin
-  OWClose(fHandle);
+  fBus.Free;
   inherited Destroy;
 end;
 
-function TOneWire.Connect(const aPort: String): Boolean;
-begin
-  Result:= false                                       ;
-  fHandle      := OWOpen(APort)                        ;
-  Result:= fHandle <> OW_INVALID_HANDLE                ;
-  if Result then
-  begin
-    Self.SearchAll                                     ;
-    Self.SearchAllAlarm                                ;
-  end;
-end;
-
 end.
+
