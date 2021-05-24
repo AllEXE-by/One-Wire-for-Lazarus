@@ -4,7 +4,7 @@ unit DS18X20;
 {$DEFINE DEBUG}
 interface
 
-uses OneWire, Windows, SysUtils;
+uses OneWire, SysUtils;
 
 const
   CONVERT_T        = $44; // Конвертировать температуру
@@ -13,7 +13,7 @@ const
   WRITE_EEPROM     = $48; // Копировать настройки в ЕEPROM
   READ_EEPROM      = $B8; // Копировать настройки из ЕЕPROM
 
-  fMEASURE         = '℃';
+  fMEASURE         = ' C';
 
 type
 
@@ -37,11 +37,16 @@ type
   POWDS18S20 = ^TOWDS18X20                                                          ;
   POWDS18B20 = ^TOWDS18X20                                                          ;
 
+  { TOWDS18X20 }
+
   TOWDS18X20 = class(TOWDefaultDevice)
   private
+    function    GetCurTempStr: String;
     function    GetMaxTemp               : ShortInt                                 ;
+    function    GetMaxTempStr: String;
     function    GetMinTemp               : ShortInt                                 ;
     function    GetCurTemp               : Integer                                  ;
+    function    GetMinTempStr: String;
     function    GetResolut               : Byte                                     ;
     procedure   SetMaxTemp  (const AValue: ShortInt)                                ;
     procedure   SetMinTemp  (const AValue: ShortInt)                                ;
@@ -57,9 +62,12 @@ type
     function    LoadEEPROM               : Boolean                                  ;
     function    Busy                     : Boolean                                  ;
     property    CurTemp                  : Integer  read GetCurTemp                 ;
-    property    MaxTemp                  : ShortInt read GetMaxTemp write SetMaxTemp;
-    property    MinTemp                  : ShortInt read GetMinTemp write SetMinTemp;
-    property    Resolution               : Byte     read GetResolut write SetResolut;
+    property    CurTempStr               : String   read GetCurTempStr              ;
+    property    MaxTemp                  : ShortInt read GetMaxTemp    write SetMaxTemp;
+    property    MaxTempStr               : String   read GetMaxTempStr;
+    property    MinTemp                  : ShortInt read GetMinTemp    write SetMinTemp;
+    property    MinTempStr               : String   read GetMinTempStr;
+    property    Resolution               : Byte     read GetResolut    write SetResolut;
   end                                                                               ;
 
   TOWDS1820  = TOWDS18X20;
@@ -81,6 +89,11 @@ begin
   else Result := Trunc((TDS18X20(fDATA^).TEMP / 2 - 0.25 + (TDS18X20(fDATA^).CNT_PER - TDS18X20(fDATA^).CNT_REM) / TDS18X20(fDATA^).CNT_PER) * 100);
 end;
 
+function    TOWDS18X20.GetMinTempStr          : String;
+begin
+  Result:= IntToStr(MinTemp) + fMEASURE;
+end;
+
 function    TOWDS18X20.GetResolut             : Byte     ;
 begin
   Result:= 3;
@@ -88,11 +101,21 @@ begin
   Result:= not($80)and(TDS18X20(fDATA^).CONF shr 6); // Выделяем разрядность датчика.
 end;
 
+function    TOWDS18X20.GetCurTempStr          : String;
+begin
+  Result:= IntToStr(GetCurTemp div 100)+ DefaultFormatSettings.DecimalSeparator +IntToStr(GetCurTemp mod 100) + fMEASURE;
+end;
+
 function    TOWDS18X20.GetMaxTemp             : ShortInt ;
 begin
   Result:= -85;
   if not(Assigned(fDATA)) then Exit;
   Result:= TDS18X20(fDATA^).TEMP_MAX;
+end;
+
+function    TOWDS18X20.GetMaxTempStr          : String;
+begin
+  Result:= IntToStr(MaxTemp) + fMEASURE;
 end;
 
 function    TOWDS18X20.GetMinTemp             : ShortInt ;
@@ -120,8 +143,7 @@ begin
   TDS18X20(fDATA^).CONF:= AValue shl 6;
 end;
 
-constructor TOWDS18X20.Create    (const AOWire: TOneWire ;
-                                  const aDev  : TOWROM  );
+constructor TOWDS18X20.Create    (const AOWire: TOneWire; const ADev: TOWROM);
 begin
   inherited Create(AOWire, ADev);
 end;

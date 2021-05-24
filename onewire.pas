@@ -15,7 +15,7 @@ type
 
   { TOWDEV }
   POWROM = ^TOWROM;
-  TOWROM      = record
+  TOWROM = record
     dTYPE  : Byte;
     dMAC   : TMAC;
     dCRC   : Byte;
@@ -24,65 +24,63 @@ type
   { TONEWIRE }
   TOneWire = class(TObject)
     private
-      fBUS                                           : TOWBUS                          ;
-      fEROM                                          : Integer                         ;
-      fENDD                                          : Boolean                         ;
-      fBUSY                                          : Integer                         ;
-      fDEVICES                                       : Array of TOWROM                 ;
-      fALARMS                                        : Array of TOWROM                 ;
-      function    GetBusy                            : Int64                           ;
-      function    GetDevice(index : Integer): TOWROM;
-      function    GetDeviceAlarm(index : Integer): TOWROM;
-      function    SearchEx    (var   ADevice : TOWROM)  : Boolean                   ;
-      procedure   SetBusy     (const AValue: Int64)                                    ;
-      function    SearchDevices      (var   ADevice : TOWROM   ): Boolean           ;
-      function    SearchDevicesAlarm (var   ADevice : TOWROM   ): Boolean           ;
+      fBUS                                          : TOWBUS                              ;
+      fEROM                                         : Integer                             ;
+      fENDD                                         : Boolean                             ;
+      fBUSY                                         : Integer                             ;
+      fDEVICES                                      : Array of  TOWROM                    ;
+      fALARMS                                       : Array of  TOWROM                    ;
+      function    GetBusy                           : Int64                               ;
+      function    GetDevice          (Index         : Integer): TOWROM                    ;
+      function    GetDeviceAlarm     (Index         : Integer): TOWROM                    ;
+      function    SearchEx           (var   ADevice : TOWROM ): Boolean                   ;
+      procedure   SetBusy            (const AValue  : Int64  )                            ;
+      function    SearchDevices      (var   ADevice : TOWROM ): Boolean                   ;
+      function    SearchDevicesAlarm (var   ADevice : TOWROM ): Boolean                   ;
     public
-      constructor Create      (const ADevice : String)                                 ;
-      destructor  Destroy                   ;                                  override;
-      function    Reset                               : Boolean                        ;
-      function    Write       (const AValue : Byte   ): Boolean                        ;
-      function    Read        (var   AValue : Byte   ): Boolean                        ;
-      function    WriteBit    (const AValue : Boolean): Boolean                        ;
-      function    ReadBit     (var   AValue : Boolean): Boolean                        ;
-      procedure   WaitBus                                                              ;
-      function    SelectAll                           : Boolean                        ;
-      function    Select      (const ADevice : TOWROM   ): Boolean                  ;
-      function    ReadROM     (var   ADevice : TOWROM   ): Boolean                  ;
-      function    DevicesCount      : Integer                                          ;
-      function    DevicesAlarmCount : Integer                                          ;
-      property    Device     [index : Integer]: TOWROM read GetDevice;
-      property    DeviceAlarm[index : Integer]: TOWROM read GetDeviceAlarm;
-
-      procedure   SearchDevices;
-      procedure   SearchDevicesAlarm;
-
-      procedure   SearchClear                                                          ;
-      property    BusyTime                           : Int64 read GetBusy write SetBusy;
-  end                                                                                  ;
+      constructor Create             (const ADevice : String )                            ;
+      destructor  Destroy                                     ; override                  ;
+      function    Reset                                       : Boolean                   ;
+      function    Write              (const AValue  : Byte   ): Boolean                   ;
+      function    Read               (var   AValue  : Byte   ): Boolean                   ;
+      function    WriteBit           (const AValue  : Boolean): Boolean                   ;
+      function    ReadBit            (var   AValue  : Boolean): Boolean                   ;
+      procedure   WaitBus                                                                 ;
+      function    SelectAll                                   : Boolean                   ;
+      function    Select             (const ADevice : TOWROM ): Boolean                   ;
+      function    ReadROM            (var   ADevice : TOWROM ): Boolean                   ;
+      function    DevicesCount                                : Integer                   ;
+      function    DevicesAlarmCount                           : Integer                   ;
+      property    Device             [Index         : Integer]: TOWROM read GetDevice     ;
+      property    DeviceAlarm        [Index         : Integer]: TOWROM read GetDeviceAlarm;
+      procedure   SearchDevices                                                           ;
+      procedure   SearchDevicesAlarm                                                      ;
+      procedure   SearchClear                                                             ;
+      property    BusyTime                          : Int64 read GetBusy write SetBusy    ;
+  end                                                                                     ;
 
 
   { TOWDefDeviceice }
 
   TOWDefaultDevice = class(TObject)
     private
-      fOneWire                          : TOneWire;
-      fPOWER                            : Boolean;
-      function    GetPower              : Boolean;
+      fOneWire                                      : TOneWire                            ;
+      fPOWER                                        : Boolean                             ;
+      function    GetPower                          : Boolean                             ;
     protected
-      fROM                              : TOWROM;
-      fDATA                             : Pointer;
+      fROM                                          : TOWROM                              ;
+      fDATA                                         : Pointer                             ;
     public
-      constructor Create   (const AOWire: TOneWire;
-                            const  ADevice : TOWROM) ;
-      destructor  Destroy               ; override ;
-      property    TypeDevice            : Byte read fROM.dTYPE;
-      function    TypeName              : String;
-      function    LoadPower             : Boolean ;
-      property    Bus                   : TOneWire read fOneWire;
-      property    MAC                   : TMAC read fROM.dMAC;
-      property    Power                 : Boolean read GetPower;
-  end;
+      constructor Create             (const AOWire  : TOneWire                            ;
+                                      const ADevice : TOWROM)                             ;
+      destructor  Destroy                           ; override                            ;
+      property    TypeDevice                        : Byte read fROM.dTYPE                ;
+      function    TypeName                          : String                              ;
+      function    LoadPower                         : Boolean                             ;
+      property    Bus                               : TOneWire read fOneWire              ;
+      property    MAC                               : TMAC read fROM.dMAC                 ;
+      property    Power                             : Boolean read GetPower               ;
+  end                                                                                     ;
 
 
 
